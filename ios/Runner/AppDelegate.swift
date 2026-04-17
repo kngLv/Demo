@@ -7,6 +7,7 @@ import Flutter
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // 注册 Flutter 与 iOS 原生的通信通道
     if let controller = window?.rootViewController as? FlutterViewController {
       let channel = FlutterMethodChannel(
         name: "app_demo/screen_time",
@@ -20,12 +21,13 @@ import Flutter
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
+  // 分发 Flutter 端发来的方法调用
   private func handleScreenTimeCall(call: FlutterMethodCall, result: @escaping FlutterResult) {
     guard #available(iOS 15.0, *) else {
       result(
         FlutterError(
           code: "UNSUPPORTED_IOS",
-          message: "Requires iOS 15.0 or later.",
+          message: "需要 iOS 15.0 及以上版本。",
           details: nil
         )
       )
@@ -42,7 +44,7 @@ import Flutter
         result(
           FlutterError(
             code: "NO_ROOT_VIEW_CONTROLLER",
-            message: "No root view controller available.",
+            message: "未找到根视图控制器。",
             details: nil
           )
         )
