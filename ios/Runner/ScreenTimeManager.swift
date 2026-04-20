@@ -14,17 +14,40 @@ final class ScreenTimeManager {
 
   private init() {}
 
+  private func authErrorMessage(_ error: Error) -> String {
+    let nsError = error as NSError
+    return "屏幕使用时间授权失败：\(error.localizedDescription) [\(nsError.domain):\(nsError.code)]"
+  }
+
   // 申请 Screen Time 授权（个人模式）
   func requestAuthorization(result: @escaping FlutterResult) {
-    Task {
-      do {
-        try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
+    if #available(iOS 16.0, *) {
+      Task {
+        do {
+          try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
+          result("授权成功")
+        } catch {
+          result(
+            FlutterError(
+              code: "AUTH_FAILED",
+              message: self.authErrorMessage(error),
+              details: nil
+            )
+          )
+        }
+      }
+      return
+    }
+
+    AuthorizationCenter.shared.requestAuthorization { authResult in
+      switch authResult {
+      case .success:
         result("授权成功")
-      } catch {
+      case .failure(let error):
         result(
           FlutterError(
             code: "AUTH_FAILED",
-            message: "屏幕使用时间授权失败：\(error.localizedDescription)",
+            message: self.authErrorMessage(error),
             details: nil
           )
         )
@@ -68,21 +91,24 @@ final class ScreenTimeManager {
       return
     }
 
-    store.shield.applications = selection.applicationTokens
+    let blockedApps = Set(selection.applicationTokens.map { Application(token: $0) })
+    store.application.blockedApplications = blockedApps.isEmpty ? nil : blockedApps
+    // App 级别改为 blockedApplications，避免仍然只是 shield 覆盖效果。
+    store.shield.applications = nil
     store.shield.applicationCategories = ShieldSettings.ActivityCategoryPolicy.specific(
       selection.categoryTokens
     )
-    store.shield.webDomainCategories = ShieldSettings.ActivityCategoryPolicy.specific(
-      selection.webDomainTokens
-    )
+    store.shield.webDomains = selection.webDomainTokens
     result("限制已生效")
   }
 
   // 清除所有限制
   func clearRestriction(result: @escaping FlutterResult) {
+    store.application.blockedApplications = nil
     store.shield.applications = nil
     store.shield.applicationCategories = nil
     store.shield.webDomainCategories = nil
+    store.shield.webDomains = nil
     result("限制已解除")
   }
 }

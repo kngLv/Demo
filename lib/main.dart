@@ -66,7 +66,7 @@ class _ScreenTimeDemoPageState extends State<ScreenTimeDemoPage> {
           children: [
             FilledButton(
               onPressed: () => _run('requestAuthorization'),
-              child: const Text('1) 申请屏幕使用时间权限'),
+              child: const Text('1) 申请权限'),
             ),
             const SizedBox(height: 12),
             FilledButton(
