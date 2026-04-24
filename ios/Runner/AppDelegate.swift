@@ -51,8 +51,65 @@ import Flutter
         return
       }
       manager.pickApplications(from: root, result: result)
+    case "openRestrictionCenter":
+      guard let root = window?.rootViewController else {
+        result(
+          FlutterError(
+            code: "NO_ROOT_VIEW_CONTROLLER",
+            message: "未找到根视图控制器。",
+            details: nil
+          )
+        )
+        return
+      }
+      manager.openRestrictionCenter(from: root, result: result)
+    case "openNativeUsageDashboard":
+      guard let root = window?.rootViewController else {
+        result(
+          FlutterError(
+            code: "NO_ROOT_VIEW_CONTROLLER",
+            message: "未找到根视图控制器。",
+            details: nil
+          )
+        )
+        return
+      }
+      manager.openNativeUsageDashboard(from: root, result: result)
+    case "showUsageReportForDay":
+      guard let root = window?.rootViewController else {
+        result(
+          FlutterError(
+            code: "NO_ROOT_VIEW_CONTROLLER",
+            message: "未找到根视图控制器。",
+            details: nil
+          )
+        )
+        return
+      }
+      let args = call.arguments as? [String: Any]
+      let daysAgo = args?["daysAgo"] as? Int ?? 0
+      manager.showUsageReport(from: root, daysAgo: daysAgo, result: result)
     case "applyRestriction":
       manager.applyRestriction(result: result)
+    case "configureTimedRestriction":
+      let args = call.arguments as? [String: Any] ?? [:]
+      manager.configureTimedRestriction(arguments: args, result: result)
+    case "getTimedRestrictionStatus":
+      manager.getTimedRestrictionStatus(result: result)
+    case "cancelTimedRestriction":
+      manager.cancelTimedRestriction(result: result)
+    case "showUsageReport":
+      guard let root = window?.rootViewController else {
+        result(
+          FlutterError(
+            code: "NO_ROOT_VIEW_CONTROLLER",
+            message: "未找到根视图控制器。",
+            details: nil
+          )
+        )
+        return
+      }
+      manager.showUsageReport(from: root, daysAgo: 0, result: result)
     case "clearRestriction":
       manager.clearRestriction(result: result)
     default:
