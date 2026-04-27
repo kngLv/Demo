@@ -6,8 +6,6 @@ import ManagedSettings
 final class DeviceActivityMonitorExtension: DeviceActivityMonitor {
   private let appGroupID = "group.com.lvkang.appdemo20260420.sh"
   private let selectionAppsKey = "timed_selection_apps"
-  private let selectionCategoriesKey = "timed_selection_categories"
-  private let selectionDomainsKey = "timed_selection_domains"
   private let store = ManagedSettingsStore()
 
   override func intervalDidStart(for activity: DeviceActivityName) {
@@ -36,29 +34,12 @@ final class DeviceActivityMonitorExtension: DeviceActivityMonitor {
       return value
     }()
 
-    let categoryTokens: Set<ActivityCategoryToken> = {
-      guard
-        let data = defaults.data(forKey: selectionCategoriesKey),
-        let value = try? decoder.decode(Set<ActivityCategoryToken>.self, from: data)
-      else { return [] }
-      return value
-    }()
-
-    let domainTokens: Set<WebDomainToken> = {
-      guard
-        let data = defaults.data(forKey: selectionDomainsKey),
-        let value = try? decoder.decode(Set<WebDomainToken>.self, from: data)
-      else { return [] }
-      return value
-    }()
-
     let blockedApps = Set(appTokens.map { Application(token: $0) })
     store.application.blockedApplications = blockedApps.isEmpty ? nil : blockedApps
     store.shield.applications = nil
-    store.shield.applicationCategories = categoryTokens.isEmpty
-      ? nil
-      : ShieldSettings.ActivityCategoryPolicy.specific(categoryTokens)
-    store.shield.webDomains = domainTokens.isEmpty ? nil : domainTokens
+    store.shield.applicationCategories = nil
+    store.shield.webDomainCategories = nil
+    store.shield.webDomains = nil
   }
 
   private func clearAllRestrictions() {

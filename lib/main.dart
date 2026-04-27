@@ -374,9 +374,9 @@ class _TimedHideConfigPageState extends State<TimedHideConfigPage> {
               Text('隐藏时长：$_minutes 分钟'),
               Slider(
                 value: _minutes.toDouble(),
-                min: 10,
+                min: 15,
                 max: 480,
-                divisions: 47,
+                divisions: 465,
                 label: '$_minutes 分钟',
                 onChanged: (value) {
                   setState(() {

@@ -1,0 +1,82 @@
+[
+  {
+    "typeName": "ScreenTimeReportExtension.ScreenTimeReportExtension",
+    "mangledTypeName": "25ScreenTimeReportExtensionAAV",
+    "kind": "struct",
+    "file": "/Users/lvkang/Desktop/Demo/ios/ScreenTimeReportExtension/ScreenTimeReportExtension.swift",
+    "line": 13,
+    "conformances": [
+      "_DeviceActivity_SwiftUI.DeviceActivityReportExtension",
+      "ExtensionFoundation.AppExtension",
+      "Swift.Sendable",
+      "Swift.BitwiseCopyable"
+    ],
+    "allConformances": [
+      {
+        "protocolName": "_DeviceActivity_SwiftUI.DeviceActivityReportExtension",
+        "conformanceDefiningModule": "ScreenTimeReportExtension"
+      },
+      {
+        "protocolName": "ExtensionFoundation.AppExtension",
+        "conformanceDefiningModule": "ScreenTimeReportExtension"
+      },
+      {
+        "protocolName": "Swift.Sendable",
+        "conformanceDefiningModule": "ScreenTimeReportExtension"
+      },
+      {
+        "protocolName": "Swift.BitwiseCopyable",
+        "conformanceDefiningModule": "ScreenTimeReportExtension"
+      }
+    ],
+    "associatedTypeAliases": [
+      {
+        "typeAliasName": "Body",
+        "substitutedTypeName": "some _DeviceActivity_SwiftUI.DeviceActivityReportScene",
+        "substitutedMangledTypeName": "25ScreenTimeReportExtensionAAV4bodyQrvpQOy_Qo_",
+        "opaqueTypeProtocolRequirements": [
+          "_DeviceActivity_SwiftUI.DeviceActivityReportScene"
+        ],
+        "opaqueTypeSameTypeRequirements": []
+      },
+      {
+        "typeAliasName": "Configuration",
+        "substitutedTypeName": "ExtensionKit.AppExtensionSceneConfiguration",
+        "substitutedMangledTypeName": "12ExtensionKit03AppA18SceneConfigurationV"
+      }
+    ],
+    "properties": [
+      {
+        "label": "body",
+        "type": "some _DeviceActivity_SwiftUI.DeviceActivityReportScene",
+        "mangledTypeName": "n/a - deprecated",
+        "isStatic": "false",
+        "isComputed": "true",
+        "file": "/Users/lvkang/Desktop/Demo/ios/ScreenTimeReportExtension/ScreenTimeReportExtension.swift",
+        "line": 14,
+        "valueKind": "Builder",
+        "value": {
+          "type": "_DeviceActivity_SwiftUI.DeviceActivityReportBuilder",
+          "members": [
+            {
+              "kind": "buildExpression",
+              "element": {
+                "valueKind": "InitCall",
+                "value": {
+                  "type": "ScreenTimeReportExtension.TotalActivityReport",
+                  "arguments": [
+                    {
+                      "label": "content",
+                      "type": "(Swift.String) -> ScreenTimeReportExtension.TotalActivityView",
+                      "valueKind": "Runtime"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+]

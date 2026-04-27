@@ -13,10 +13,12 @@ final class ScreenTimeManager {
   private let selectionAppsKey = "timed_selection_apps"
   private let selectionCategoriesKey = "timed_selection_categories"
   private let selectionDomainsKey = "timed_selection_domains"
+  private let selectionAppNamesKey = "timed_selection_app_names"
   private let timedStatusModeKey = "timed_status_mode"
   private let timedStatusMinutesKey = "timed_status_minutes"
   private let timedStatusStartMinuteKey = "timed_status_start_minute"
   private let timedStatusEndMinuteKey = "timed_status_end_minute"
+  private let timedStatusCountdownEndAtKey = "timed_status_countdown_end_at"
   private let timedStatusUpdatedAtKey = "timed_status_updated_at"
   private let countdownActivityName = DeviceActivityName("TimedHide.Countdown")
   private let dailyActivityName = DeviceActivityName("TimedHide.DailyWindow")
@@ -25,7 +27,9 @@ final class ScreenTimeManager {
   // 保存用户当前选中的应用/分类 token
   private var selection = FamilyActivitySelection()
 
-  private init() {}
+  private init() {
+    restoreSelectionFromSharedStore()
+  }
 
   private func authErrorMessage(_ error: Error) -> String {
     let nsError = error as NSError
@@ -86,9 +90,11 @@ final class ScreenTimeManager {
         completion("已取消")
       case .done:
         self.selection = pickedSelection
+        self.persistSelectedAppNames(from: pickedSelection)
+        try? self.saveTimedSelectionToSharedStore()
         let appCount = pickedSelection.applicationTokens.count
         let categoryCount = pickedSelection.categoryTokens.count
-        completion("已选择应用 \(appCount) 个，分类 \(categoryCount) 个")
+        completion("已选择应用 \(appCount) 个，分类 \(categoryCount) 个（隐藏仅对应用生效）")
       }
     }
 
@@ -97,11 +103,11 @@ final class ScreenTimeManager {
 
   // 对已选 token 应用限制（shield）
   func applyRestriction(result: @escaping FlutterResult) {
-    if !hasSelection() {
+    if !hasAppSelection() {
       result(
         FlutterError(
           code: "EMPTY_SELECTION",
-          message: "尚未选择应用或分类，请先选择应用。",
+          message: "尚未选择具体应用，请先选择应用。",
           details: nil
         )
       )
@@ -114,11 +120,11 @@ final class ScreenTimeManager {
 
   // 方案：定时隐藏（倒计时 / 每日固定时段）
   func configureTimedRestriction(arguments: [String: Any], result: @escaping FlutterResult) {
-    guard hasSelection() else {
+    guard hasAppSelection() else {
       result(
         FlutterError(
           code: "EMPTY_SELECTION",
-          message: "请先选择要隐藏的应用。",
+          message: "请先选择要隐藏的具体应用。",
           details: nil
         )
       )
@@ -137,11 +143,11 @@ final class ScreenTimeManager {
     }
 
     if mode == "countdown" {
-      guard let minutes = arguments["minutes"] as? Int, minutes > 0 else {
+      guard let minutes = arguments["minutes"] as? Int, minutes >= 15 else {
         result(
           FlutterError(
             code: "INVALID_ARGS",
-            message: "minutes 必须是大于等于 1 的整数。",
+            message: "minutes 必须是大于等于 15 的整数。",
             details: nil
           )
         )
@@ -150,21 +156,35 @@ final class ScreenTimeManager {
       do {
         try saveTimedSelectionToSharedStore()
         stopSystemTimedMonitoring()
-        try startCountdownMonitoring(minutes: minutes)
+        let countdownEndAt = try startCountdownMonitoring(minutes: minutes)
         // 立即生效，后台结束由 Monitor Extension 在 intervalDidEnd 中清理。
         applySelectionRestriction()
         saveTimedStatus(
           mode: "countdown",
           minutes: minutes,
           startMinute: nil,
-          endMinute: nil
+          endMinute: nil,
+          countdownEndAt: countdownEndAt.timeIntervalSince1970
         )
         result("已开启系统倒计时隐藏：\(minutes) 分钟")
       } catch {
+        let message = error.localizedDescription
+        if message.localizedCaseInsensitiveContains("schedule is too short")
+          || message.localizedCaseInsensitiveContains("too short")
+        {
+          result(
+            FlutterError(
+              code: "MIN_DURATION_NOT_SUPPORTED",
+              message: "系统后台调度最短时长受限（当前设备/系统通常需至少约 15 分钟）。",
+              details: "你设置了 \(minutes) 分钟，系统返回：\(message)"
+            )
+          )
+          return
+        }
         result(
           FlutterError(
             code: "SCHEDULE_FAILED",
-            message: "配置系统倒计时失败：\(error.localizedDescription)",
+            message: "配置系统倒计时失败：\(message)",
             details: nil
           )
         )
@@ -204,7 +224,8 @@ final class ScreenTimeManager {
           mode: "dailyWindow",
           minutes: nil,
           startMinute: startMinute,
-          endMinute: endMinute
+          endMinute: endMinute,
+          countdownEndAt: nil
         )
         result("已开启系统每日时段隐藏：\(timeLabel(minute: startMinute)) - \(timeLabel(minute: endMinute))")
       } catch {
@@ -229,6 +250,7 @@ final class ScreenTimeManager {
   }
 
   func getTimedRestrictionStatus(result: @escaping FlutterResult) {
+    restoreSelectionFromSharedStore()
     guard let defaults = UserDefaults(suiteName: appGroupID) else {
       result(
         FlutterError(
@@ -250,6 +272,7 @@ final class ScreenTimeManager {
       "mode": mode,
       "selectedAppCount": selection.applicationTokens.count,
       "selectedCategoryCount": selection.categoryTokens.count,
+      "isActiveNow": isTimedRestrictionActiveNow(mode: mode),
     ]
     if defaults.object(forKey: timedStatusMinutesKey) != nil {
       payload["minutes"] = defaults.integer(forKey: timedStatusMinutesKey)
@@ -259,6 +282,9 @@ final class ScreenTimeManager {
     }
     if defaults.object(forKey: timedStatusEndMinuteKey) != nil {
       payload["endMinute"] = defaults.integer(forKey: timedStatusEndMinuteKey)
+    }
+    if let ts = defaults.object(forKey: timedStatusCountdownEndAtKey) as? Double {
+      payload["countdownEndAt"] = ts
     }
     if let ts = defaults.object(forKey: timedStatusUpdatedAtKey) as? Double {
       payload["updatedAt"] = ts
@@ -293,30 +319,33 @@ final class ScreenTimeManager {
       return
     }
 
+    restoreSelectionFromSharedStore()
     let centerView = RestrictionCenterView(
       initialAppTokens: Array(selection.applicationTokens),
       initialCategoryCount: selection.categoryTokens.count,
       initialTimedStatus: timedStatusText(),
+      initialAppNames: appDisplayNamesFromStore(),
       onAddApp: { [weak self, weak viewController] refresh in
         guard let self, let viewController else { return }
         self.pickApplicationsNative(from: viewController) { _ in
           refresh(
             Array(self.selection.applicationTokens),
             self.selection.categoryTokens.count,
-            self.timedStatusText()
+            self.timedStatusText(),
+            self.appDisplayNamesFromStore()
           )
         }
       },
       onApplyNow: { [weak self] update in
         self?.applyRestriction(result: { value in
-          update(String(describing: value))
+          update(self?.resultMessage(from: value) ?? "操作完成")
         })
       },
       onSetCountdown: { [weak self] minutes, update in
         self?.configureTimedRestriction(
           arguments: ["mode": "countdown", "minutes": minutes],
           result: { value in
-            update(String(describing: value))
+            update(self?.resultMessage(from: value) ?? "操作完成")
           }
         )
       },
@@ -324,13 +353,13 @@ final class ScreenTimeManager {
         self?.configureTimedRestriction(
           arguments: ["mode": "dailyWindow", "startMinute": startMinute, "endMinute": endMinute],
           result: { value in
-            update(String(describing: value))
+            update(self?.resultMessage(from: value) ?? "操作完成")
           }
         )
       },
       onCancelTimed: { [weak self] update in
         self?.cancelTimedRestriction(result: { value in
-          update(String(describing: value))
+          update(self?.resultMessage(from: value) ?? "操作完成")
         })
       },
       onRefreshTimedStatus: { [weak self] update in
@@ -346,31 +375,18 @@ final class ScreenTimeManager {
 
   // 展示系统使用时长报告（需要 iOS 16+）
   func showUsageReport(from viewController: UIViewController, daysAgo: Int, result: @escaping FlutterResult) {
-    guard #available(iOS 16.0, *) else {
+    guard #available(iOS 17.0, *) else {
       result(
         FlutterError(
           code: "UNSUPPORTED_IOS",
-          message: "使用时长报告需要 iOS 16.0 及以上版本。",
+          message: "当前设备系统不支持此报告扩展（需要 iOS 17.0 及以上）。",
           details: nil
         )
       )
       return
     }
 
-    let hasSelection =
-      !selection.applicationTokens.isEmpty
-      || !selection.categoryTokens.isEmpty
-      || !selection.webDomainTokens.isEmpty
-    if !hasSelection {
-      result(
-        FlutterError(
-          code: "EMPTY_SELECTION",
-          message: "请先选择要查看时长的应用或分类。",
-          details: nil
-        )
-      )
-      return
-    }
+    restoreSelectionFromSharedStore()
 
     let report = ScreenTimeReportView(filter: usageFilter(daysAgo: daysAgo), onClose: {
       viewController.dismiss(animated: true)
@@ -384,17 +400,18 @@ final class ScreenTimeManager {
 
   // 方案 1：原生定制页面（顶部选择+日期切换+报告入口）
   func openNativeUsageDashboard(from viewController: UIViewController, result: @escaping FlutterResult) {
-    guard #available(iOS 16.0, *) else {
+    guard #available(iOS 17.0, *) else {
       result(
         FlutterError(
           code: "UNSUPPORTED_IOS",
-          message: "使用时长报告需要 iOS 16.0 及以上版本。",
+          message: "当前设备系统不支持此报告扩展（需要 iOS 17.0 及以上）。",
           details: nil
         )
       )
       return
     }
 
+    restoreSelectionFromSharedStore()
     let dashboard = NativeUsageDashboardView(
       initialSummary: selectionSummaryText(),
       onAddApp: { [weak self, weak viewController] refresh in
@@ -424,15 +441,18 @@ final class ScreenTimeManager {
       || !selection.webDomainTokens.isEmpty
   }
 
+  private func hasAppSelection() -> Bool {
+    !selection.applicationTokens.isEmpty
+  }
+
   private func applySelectionRestriction() {
     let blockedApps = Set(selection.applicationTokens.map { Application(token: $0) })
     store.application.blockedApplications = blockedApps.isEmpty ? nil : blockedApps
-    // App 级别改为 blockedApplications，避免仍然只是 shield 覆盖效果。
+    // 统一“隐藏”体验：仅按具体应用 token 生效，不再使用分类/网页 shield（避免出现变灰）。
     store.shield.applications = nil
-    store.shield.applicationCategories = ShieldSettings.ActivityCategoryPolicy.specific(
-      selection.categoryTokens
-    )
-    store.shield.webDomains = selection.webDomainTokens
+    store.shield.applicationCategories = nil
+    store.shield.webDomainCategories = nil
+    store.shield.webDomains = nil
   }
 
   private func clearAllRestrictions() {
@@ -462,7 +482,7 @@ final class ScreenTimeManager {
     String(format: "%02d:%02d", minute / 60, minute % 60)
   }
 
-  private func startCountdownMonitoring(minutes: Int) throws {
+  private func startCountdownMonitoring(minutes: Int) throws -> Date {
     let calendar = Calendar.current
     let now = Date()
     // 从“下一整分钟”开始，避免 start/end 被系统判定为同一时间窗口。
@@ -492,6 +512,7 @@ final class ScreenTimeManager {
       repeats: false
     )
     try DeviceActivityCenter().startMonitoring(countdownActivityName, during: schedule)
+    return end
   }
 
   private func startDailyWindowMonitoring(startMinute: Int, endMinute: Int) throws {
@@ -531,7 +552,8 @@ final class ScreenTimeManager {
     mode: String,
     minutes: Int?,
     startMinute: Int?,
-    endMinute: Int?
+    endMinute: Int?,
+    countdownEndAt: Double?
   ) {
     guard let defaults = UserDefaults(suiteName: appGroupID) else { return }
     defaults.set(mode, forKey: timedStatusModeKey)
@@ -550,6 +572,11 @@ final class ScreenTimeManager {
     } else {
       defaults.removeObject(forKey: timedStatusEndMinuteKey)
     }
+    if let countdownEndAt {
+      defaults.set(countdownEndAt, forKey: timedStatusCountdownEndAtKey)
+    } else {
+      defaults.removeObject(forKey: timedStatusCountdownEndAtKey)
+    }
     defaults.set(Date().timeIntervalSince1970, forKey: timedStatusUpdatedAtKey)
   }
 
@@ -559,7 +586,108 @@ final class ScreenTimeManager {
     defaults.removeObject(forKey: timedStatusMinutesKey)
     defaults.removeObject(forKey: timedStatusStartMinuteKey)
     defaults.removeObject(forKey: timedStatusEndMinuteKey)
+    defaults.removeObject(forKey: timedStatusCountdownEndAtKey)
     defaults.removeObject(forKey: timedStatusUpdatedAtKey)
+  }
+
+  private func restoreSelectionFromSharedStore() {
+    guard let defaults = UserDefaults(suiteName: appGroupID) else { return }
+    let decoder = PropertyListDecoder()
+
+    let apps: Set<ApplicationToken> = {
+      guard
+        let data = defaults.data(forKey: selectionAppsKey),
+        let value = try? decoder.decode(Set<ApplicationToken>.self, from: data)
+      else { return [] }
+      return value
+    }()
+
+    let categories: Set<ActivityCategoryToken> = {
+      guard
+        let data = defaults.data(forKey: selectionCategoriesKey),
+        let value = try? decoder.decode(Set<ActivityCategoryToken>.self, from: data)
+      else { return [] }
+      return value
+    }()
+
+    let domains: Set<WebDomainToken> = {
+      guard
+        let data = defaults.data(forKey: selectionDomainsKey),
+        let value = try? decoder.decode(Set<WebDomainToken>.self, from: data)
+      else { return [] }
+      return value
+    }()
+
+    selection.applicationTokens = apps
+    selection.categoryTokens = categories
+    selection.webDomainTokens = domains
+  }
+
+  private func isTimedRestrictionActiveNow(mode: String? = nil) -> Bool {
+    guard let defaults = UserDefaults(suiteName: appGroupID) else { return false }
+    let effectiveMode = mode ?? defaults.string(forKey: timedStatusModeKey)
+    guard let effectiveMode else { return false }
+
+    if effectiveMode == "countdown" {
+      guard let endTs = defaults.object(forKey: timedStatusCountdownEndAtKey) as? Double else {
+        return false
+      }
+      return Date().timeIntervalSince1970 < endTs
+    }
+
+    if effectiveMode == "dailyWindow" {
+      guard
+        defaults.object(forKey: timedStatusStartMinuteKey) != nil,
+        defaults.object(forKey: timedStatusEndMinuteKey) != nil
+      else { return false }
+      let start = defaults.integer(forKey: timedStatusStartMinuteKey)
+      let end = defaults.integer(forKey: timedStatusEndMinuteKey)
+      return isNowInWindow(startMinute: start, endMinute: end)
+    }
+
+    return false
+  }
+
+  private func tokenKey(_ token: ApplicationToken) -> String {
+    String(describing: token)
+  }
+
+  private func resultMessage(from value: Any?) -> String {
+    if let error = value as? FlutterError {
+      let detailText: String
+      if let details = error.details {
+        detailText = "，详情：\(details)"
+      } else {
+        detailText = ""
+      }
+      return "失败：\(error.code) \(error.message ?? "未知错误")\(detailText)"
+    }
+    if let text = value as? String, !text.isEmpty {
+      return text
+    }
+    if let value {
+      return String(describing: value)
+    }
+    return "操作完成"
+  }
+
+  private func appDisplayNamesFromStore() -> [String: String] {
+    guard let defaults = UserDefaults(suiteName: appGroupID) else { return [:] }
+    return defaults.dictionary(forKey: selectionAppNamesKey) as? [String: String] ?? [:]
+  }
+
+  private func persistSelectedAppNames(from selection: FamilyActivitySelection) {
+    guard let defaults = UserDefaults(suiteName: appGroupID) else { return }
+    var nameMap = appDisplayNamesFromStore()
+    for app in selection.applications {
+      guard
+        let token = app.token,
+        let displayName = app.localizedDisplayName,
+        !displayName.isEmpty
+      else { continue }
+      nameMap[tokenKey(token)] = displayName
+    }
+    defaults.set(nameMap, forKey: selectionAppNamesKey)
   }
 
   private func timedStatusText() -> String {
@@ -569,14 +697,20 @@ final class ScreenTimeManager {
     guard let mode = defaults.string(forKey: timedStatusModeKey) else {
       return "当前未开启系统定时隐藏"
     }
+    let activeTag = isTimedRestrictionActiveNow(mode: mode) ? "生效中" : "未生效"
     if mode == "countdown" {
       let minutes = defaults.integer(forKey: timedStatusMinutesKey)
-      return "当前计划：倒计时 \(minutes) 分钟"
+      if let endTs = defaults.object(forKey: timedStatusCountdownEndAtKey) as? Double {
+        let remaining = max(0, Int(endTs - Date().timeIntervalSince1970))
+        let remainingMinute = Int(ceil(Double(remaining) / 60.0))
+        return "当前计划：倒计时 \(minutes) 分钟（\(activeTag)，剩余约 \(remainingMinute) 分钟）"
+      }
+      return "当前计划：倒计时 \(minutes) 分钟（\(activeTag)）"
     }
     if mode == "dailyWindow" {
       let start = defaults.integer(forKey: timedStatusStartMinuteKey)
       let end = defaults.integer(forKey: timedStatusEndMinuteKey)
-      return "当前计划：每日 \(timeLabel(minute: start)) - \(timeLabel(minute: end))"
+      return "当前计划：每日 \(timeLabel(minute: start)) - \(timeLabel(minute: end))（\(activeTag)）"
     }
     return "当前计划：未知模式 \(mode)"
   }
@@ -686,13 +820,14 @@ private struct RestrictionCenterView: View {
   @State private var appTokens: [ApplicationToken]
   @State private var categoryCount: Int
   @State private var timedStatus: String
+  @State private var appDisplayNames: [String: String]
   @State private var opStatus = "准备就绪"
   @State private var mode: RestrictionTimedMode = .countdown
   @State private var countdownMinutes: Double = 60
   @State private var startMinute = 22 * 60
   @State private var endMinute = 7 * 60
 
-  let onAddApp: (@escaping ([ApplicationToken], Int, String) -> Void) -> Void
+  let onAddApp: (@escaping ([ApplicationToken], Int, String, [String: String]) -> Void) -> Void
   let onApplyNow: (@escaping (String) -> Void) -> Void
   let onSetCountdown: (Int, @escaping (String) -> Void) -> Void
   let onSetDailyWindow: (Int, Int, @escaping (String) -> Void) -> Void
@@ -703,7 +838,8 @@ private struct RestrictionCenterView: View {
     initialAppTokens: [ApplicationToken],
     initialCategoryCount: Int,
     initialTimedStatus: String,
-    onAddApp: @escaping (@escaping ([ApplicationToken], Int, String) -> Void) -> Void,
+    initialAppNames: [String: String],
+    onAddApp: @escaping (@escaping ([ApplicationToken], Int, String, [String: String]) -> Void) -> Void,
     onApplyNow: @escaping (@escaping (String) -> Void) -> Void,
     onSetCountdown: @escaping (Int, @escaping (String) -> Void) -> Void,
     onSetDailyWindow: @escaping (Int, Int, @escaping (String) -> Void) -> Void,
@@ -713,6 +849,7 @@ private struct RestrictionCenterView: View {
     _appTokens = State(initialValue: initialAppTokens)
     _categoryCount = State(initialValue: initialCategoryCount)
     _timedStatus = State(initialValue: initialTimedStatus)
+    _appDisplayNames = State(initialValue: initialAppNames)
     self.onAddApp = onAddApp
     self.onApplyNow = onApplyNow
     self.onSetCountdown = onSetCountdown
@@ -731,9 +868,13 @@ private struct RestrictionCenterView: View {
               .foregroundColor(.secondary)
           } else {
             ForEach(Array(appTokens.enumerated()), id: \.offset) { index, token in
+              let displayName = appDisplayNames[Self.tokenKey(token)] ?? "未知应用"
               VStack(alignment: .leading, spacing: 2) {
-                Label(token)
-                  .labelStyle(.titleAndIcon)
+                HStack(spacing: 8) {
+                  Label(token)
+                    .labelStyle(.iconOnly)
+                  Text(displayName)
+                }
                 Text("应用 \(index + 1)：\(String(describing: token))")
                   .font(.caption2)
                   .foregroundColor(.secondary)
@@ -748,10 +889,11 @@ private struct RestrictionCenterView: View {
 
           HStack {
             Button("添加/更新应用") {
-              onAddApp { newApps, newCategories, newTimedStatus in
+              onAddApp { newApps, newCategories, newTimedStatus, newAppNames in
                 appTokens = newApps
                 categoryCount = newCategories
                 timedStatus = newTimedStatus
+                appDisplayNames = newAppNames
                 opStatus = "已更新选择：应用 \(newApps.count) 个，分类 \(newCategories) 个"
               }
             }
@@ -773,7 +915,10 @@ private struct RestrictionCenterView: View {
 
           if mode == .countdown {
             Text("时长：\(Int(countdownMinutes)) 分钟")
-            Slider(value: $countdownMinutes, in: 1...480, step: 1)
+            Slider(value: $countdownMinutes, in: 15...480, step: 1)
+            Text("可设置 15 - 480 分钟。")
+              .font(.caption)
+              .foregroundColor(.secondary)
             Button("开启倒计时隐藏") {
               onSetCountdown(Int(countdownMinutes)) { text in
                 opStatus = text
@@ -784,7 +929,7 @@ private struct RestrictionCenterView: View {
             HStack {
               Text("开始")
               Picker("开始", selection: $startMinute) {
-                ForEach(Array(stride(from: 0, to: 1440, by: 30)), id: \.self) { minute in
+                ForEach(Array(stride(from: 0, to: 1440, by: 5)), id: \.self) { minute in
                   Text(Self.hhmm(minute)).tag(minute)
                 }
               }
@@ -792,7 +937,7 @@ private struct RestrictionCenterView: View {
             HStack {
               Text("结束")
               Picker("结束", selection: $endMinute) {
-                ForEach(Array(stride(from: 0, to: 1440, by: 30)), id: \.self) { minute in
+                ForEach(Array(stride(from: 0, to: 1440, by: 5)), id: \.self) { minute in
                   Text(Self.hhmm(minute)).tag(minute)
                 }
               }
@@ -828,6 +973,10 @@ private struct RestrictionCenterView: View {
 
   private static func hhmm(_ minute: Int) -> String {
     String(format: "%02d:%02d", minute / 60, minute % 60)
+  }
+
+  private static func tokenKey(_ token: ApplicationToken) -> String {
+    String(describing: token)
   }
 }
 

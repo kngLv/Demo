@@ -1,0 +1,39 @@
+{
+  "" : {
+    "diagnostics" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/ScreenTimeReportExtension-primary.dia",
+    "emit-module-dependencies" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/ScreenTimeReportExtension-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/ScreenTimeReportExtension-primary-emit-module.dia",
+    "pch" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/ScreenTimeReportExtension-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/ScreenTimeReportExtension-primary.swiftdeps"
+  },
+  "/Users/lvkang/Desktop/Demo/ios/ScreenTimeReportExtension/ScreenTimeReportExtension.swift" : {
+    "const-values" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/ScreenTimeReportExtension.swiftconstvalues",
+    "dependencies" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/ScreenTimeReportExtension.d",
+    "diagnostics" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/ScreenTimeReportExtension.dia",
+    "index-unit-output-path" : "/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/ScreenTimeReportExtension.o",
+    "llvm-bc" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/ScreenTimeReportExtension.bc",
+    "object" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/ScreenTimeReportExtension.o",
+    "swift-dependencies" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/ScreenTimeReportExtension.swiftdeps",
+    "swiftmodule" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/ScreenTimeReportExtension~partial.swiftmodule"
+  },
+  "/Users/lvkang/Desktop/Demo/ios/ScreenTimeReportExtension/TotalActivityReport.swift" : {
+    "const-values" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/TotalActivityReport.swiftconstvalues",
+    "dependencies" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/TotalActivityReport.d",
+    "diagnostics" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/TotalActivityReport.dia",
+    "index-unit-output-path" : "/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/TotalActivityReport.o",
+    "llvm-bc" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/TotalActivityReport.bc",
+    "object" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/TotalActivityReport.o",
+    "swift-dependencies" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/TotalActivityReport.swiftdeps",
+    "swiftmodule" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/TotalActivityReport~partial.swiftmodule"
+  },
+  "/Users/lvkang/Desktop/Demo/ios/ScreenTimeReportExtension/TotalActivityView.swift" : {
+    "const-values" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/TotalActivityView.swiftconstvalues",
+    "dependencies" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/TotalActivityView.d",
+    "diagnostics" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/TotalActivityView.dia",
+    "index-unit-output-path" : "/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/TotalActivityView.o",
+    "llvm-bc" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/TotalActivityView.bc",
+    "object" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/TotalActivityView.o",
+    "swift-dependencies" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/TotalActivityView.swiftdeps",
+    "swiftmodule" : "/Users/lvkang/Desktop/Demo/ios/build/Runner.build/Debug-iphonesimulator/ScreenTimeReportExtension.build/Objects-normal/x86_64/TotalActivityView~partial.swiftmodule"
+  }
+}
